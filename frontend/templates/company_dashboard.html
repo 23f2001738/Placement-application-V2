@@ -1,0 +1,394 @@
+{% extends 'base.html' %}
+{% block title %}Company Dashboard — Placement Portal{% endblock %}
+{% block content %}
+{% raw %}
+<div id="companyApp">
+    <nav class="navbar navbar-expand-lg portal-nav sticky-top">
+        <div class="container">
+            <span class="navbar-brand"><i class="fas fa-building me-2"></i>{{ profile.name || 'Company Portal' }}</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navCo">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navCo">
+                <ul class="navbar-nav ms-auto align-items-lg-center">
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='drives'}" href="#" @click.prevent="tab='drives'">My Drives</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='create'}" href="#" @click.prevent="tab='create'">Post Job</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='applications'}" href="#" @click.prevent="tab='applications'">Candidates</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='interviews'}" href="#" @click.prevent="tab='interviews'">Interviews</a></li>
+                    <li class="nav-item ms-lg-2">
+                        <span class="live-dot me-1"></span>
+                        <small class="text-muted me-2">{{ connectionStatus }}</small>
+                        <button @click="logout" class="btn btn-outline-primary btn-sm">Logout</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="toast-container">
+        <div v-for="(n, i) in toasts" :key="i" class="toast show mb-2 shadow">
+            <div class="toast-header">
+                <strong class="me-auto">Live Update</strong>
+                <button type="button" class="btn-close" @click="toasts.splice(i,1)"></button>
+            </div>
+            <div class="toast-body">{{ n }}</div>
+        </div>
+    </div>
+
+    <div class="hero-banner mb-4">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h1>{{ profile.name }}</h1>
+                    <p>Manage drives, review candidates, and schedule interviews</p>
+                </div>
+                <span class="badge badge-status" :class="profile.approval_status==='approved'?'bg-success':'bg-warning text-dark'">
+                    {{ profile.approval_status }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container pb-5">
+        <!-- DRIVES -->
+        <div v-if="tab==='drives'" class="row">
+            <div class="col-md-6 mb-3" v-for="d in drives" :key="d.id">
+                <div class="card job-card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="job-title">{{ d.job_title }}</h5>
+                        <p class="text-muted small">
+                            <span v-if="!expanded[d.id]">{{ d.job_description ? (d.job_description.length>100 ? d.job_description.substring(0,100)+'...' : d.job_description) : '' }}</span>
+                            <span v-else>{{ d.job_description }}</span>
+                            <a v-if="d.job_description && d.job_description.length>100" href="#" @click.prevent="toggleDesc(d.id)" class="ms-2 small">
+                                {{ expanded[d.id] ? 'Show less' : 'Read more' }}
+                            </a>
+                        </p>
+                        <p class="mb-1 small text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ d.location || 'Location not set' }}</p>
+                        <span class="badge badge-status me-2" :class="statusBadge(d.status)">{{ d.status }}</span>
+                        <span class="badge bg-light text-dark border">{{ d.applicants }} applicants</span>
+                        <p class="mt-2 mb-0 small text-muted">Deadline: {{ formatDate(d.deadline) }}</p>
+                    </div>
+                </div>
+            </div>
+            <p v-if="!drives.length" class="text-muted">No drives yet. Post your first job!</p>
+        </div>
+
+        <!-- CREATE DRIVE -->
+        <div v-if="tab==='create'" class="card shadow-sm">
+            <div class="card-header bg-white py-3"><h5 class="mb-0"><i class="fas fa-plus-circle me-2 text-primary"></i>Post a Placement Drive</h5></div>
+            <div class="card-body">
+                <form @submit.prevent="createDrive">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Job Title *</label>
+                            <input v-model="newDrive.job_title" class="form-control" required placeholder="e.g. Software Engineer Intern">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Application Deadline</label>
+                            <input v-model="newDrive.application_deadline" type="datetime-local" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Location</label>
+                            <input v-model="newDrive.location" class="form-control" placeholder="City, Office, or 'Remote'">
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Job Description</label>
+                            <textarea v-model="newDrive.job_description" class="form-control" rows="4" placeholder="Describe the role, responsibilities, and requirements..."></textarea>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Min CGPA</label>
+                            <input v-model.number="newDrive.min_cgpa" type="number" step="0.1" class="form-control">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Eligible Branches</label>
+                            <input v-model="newDrive.eligible_branches" class="form-control" placeholder="CSE,ECE,IT">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Eligible Year</label>
+                            <select v-model.number="newDrive.eligible_year" class="form-select">
+                                <option :value="null">Any</option>
+                                <option v-for="y in [1,2,3,4]" :value="y">Year {{ y }}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" :disabled="profile.approval_status!=='approved'">
+                        <i class="fas fa-paper-plane me-1"></i> Submit for Approval
+                    </button>
+                    <small v-if="profile.approval_status!=='approved'" class="text-warning ms-2">Account must be approved first.</small>
+                </form>
+            </div>
+        </div>
+
+        <!-- APPLICATIONS / CANDIDATES -->
+        <div v-if="tab==='applications'">
+            <div class="filter-bar mb-3">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <div class="search-wrap">
+                            <i class="fas fa-search"></i>
+                            <input v-model="appFilters.search" @input="debouncedLoadApps" class="form-control search-input" placeholder="Search by name or branch...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select v-model="appFilters.status" @change="loadApplications" class="form-select">
+                            <option value="">All Statuses</option>
+                            <option value="applied">Applied</option>
+                            <option value="shortlisted">Shortlisted</option>
+                            <option value="interview_scheduled">Interview Scheduled</option>
+                            <option value="selected">Selected</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select v-model="appFilters.sortBy" @change="loadApplications" class="form-select">
+                            <option value="application_date">Sort: Date</option>
+                            <option value="cgpa">Sort: CGPA</option>
+                            <option value="name">Sort: Name</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card shadow-sm">
+                <div class="card-body table-responsive p-0">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Candidate</th><th>Branch</th><th>CGPA</th><th>Drive</th><th>Status</th><th>Resume</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <tr v-for="a in applications" :key="a.id">
+                                <td><strong>{{ a.student_name }}</strong></td>
+                                <td>{{ a.branch }}</td>
+                                <td>{{ a.cgpa }}</td>
+                                <td>{{ a.drive_title }}</td>
+                                <td><span class="badge badge-status bg-info">{{ a.status }}</span></td>
+                                <td>
+                                    <button v-if="a.has_resume" @click="previewResume(a.id)" class="btn btn-outline-primary btn-sm me-1" title="Preview">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button v-if="a.has_resume" @click="downloadResume(a.id)" class="btn btn-primary btn-sm" title="Download">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    <span v-else class="text-muted small">None</span>
+                                </td>
+                                <td>
+                                    <select @change="updateStatus(a.id, $event.target.value); $event.target.value=''" class="form-select form-select-sm" style="width:auto;display:inline-block;">
+                                        <option value="">Update...</option>
+                                        <option value="shortlisted">Shortlist</option>
+                                        <option value="selected">Select</option>
+                                        <option value="rejected">Reject</option>
+                                    </select>
+                                    <button @click="openSchedule(a)" class="btn btn-accent btn-sm ms-1"><i class="fas fa-calendar-plus"></i></button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- INTERVIEWS -->
+        <div v-if="tab==='interviews'">
+            <div v-for="iv in interviews" :key="iv.id" class="card interview-card shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-7">
+                            <h5>{{ iv.student_name }}</h5>
+                            <p class="mb-1 text-primary">{{ iv.drive_title }}</p>
+                            <p class="mb-0 small"><i class="fas fa-calendar me-1"></i>{{ formatDate(iv.interview_date) }} {{ iv.interview_time }} · {{ iv.location_or_link }}</p>
+                        </div>
+                        <div class="col-md-5 text-md-end mt-2 mt-md-0">
+                            <span class="badge badge-status" :class="iv.status==='scheduled'?'bg-warning text-dark':'bg-secondary'">{{ iv.status }}</span>
+                            <button v-if="iv.status==='scheduled'" @click="completeInterview(iv.id)" class="btn btn-success btn-sm ms-2">Complete</button>
+                            <button v-if="iv.status==='scheduled'" @click="cancelInterview(iv.id)" class="btn btn-outline-danger btn-sm ms-1">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p v-if="!interviews.length" class="text-muted text-center py-4">No interviews scheduled.</p>
+        </div>
+    </div>
+
+    <!-- Resume Preview Modal -->
+    <div class="modal fade" id="resumeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" v-if="resumePreview">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-file-alt me-2"></i>{{ resumePreview.student_name }}'s Resume</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Branch:</strong> {{ resumePreview.branch }}</p>
+                    <p><strong>CGPA:</strong> {{ resumePreview.cgpa }}</p>
+                    <p><strong>File:</strong> {{ resumePreview.file_type?.toUpperCase() }} ({{ formatSize(resumePreview.file_size) }})</p>
+                    <p><strong>Uploaded:</strong> {{ formatDate(resumePreview.uploaded_at) }}</p>
+                </div>
+                <div class="modal-footer">
+                    <button @click="downloadResume(resumePreviewAppId)" class="btn btn-primary"><i class="fas fa-download me-1"></i>Download</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Interview Modal -->
+    <div class="modal fade" id="scheduleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-calendar-plus me-2"></i>Schedule Interview</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" v-if="scheduleApp">
+                    <p class="text-muted">Candidate: <strong>{{ scheduleApp.student_name }}</strong> — {{ scheduleApp.drive_title }}</p>
+                    <div class="mb-3">
+                        <label class="form-label">Date & Time</label>
+                        <input v-model="scheduleForm.interview_date" type="datetime-local" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Time (display)</label>
+                        <input v-model="scheduleForm.interview_time" class="form-control" placeholder="e.g. 10:00 AM IST">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Type</label>
+                        <select v-model="scheduleForm.interview_type" class="form-select">
+                            <option value="technical">Technical</option>
+                            <option value="hr">HR</option>
+                            <option value="managerial">Managerial</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Round</label>
+                        <input v-model.number="scheduleForm.interview_round" type="number" min="1" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Location / Meeting Link</label>
+                        <input v-model="scheduleForm.location_or_link" class="form-control" placeholder="Room 101 or https://meet.google.com/...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea v-model="scheduleForm.notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button @click="submitSchedule" class="btn btn-primary"><i class="fas fa-check me-1"></i>Schedule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+    data() {
+        return {
+            tab: 'drives', profile: {}, drives: [], applications: [], interviews: [],
+            toasts: [], connectionStatus: 'Connecting...', socket: null,
+            appFilters: { search: '', status: '', sortBy: 'application_date' },
+            debounceTimer: null,
+            newDrive: { job_title: '', job_description: '', location: '', min_cgpa: 0, eligible_branches: '', eligible_year: null, application_deadline: '' },
+            expanded: {},
+            resumePreview: null, resumePreviewAppId: null,
+            scheduleApp: null,
+            scheduleForm: { interview_date: '', interview_time: '', interview_type: 'technical', interview_round: 1, location_or_link: '', notes: '' },
+            resumeModal: null, scheduleModal: null
+        };
+    },
+    mounted() {
+        this.loadAll();
+        this.initSocket();
+        this.resumeModal = new bootstrap.Modal(document.getElementById('resumeModal'));
+        this.scheduleModal = new bootstrap.Modal(document.getElementById('scheduleModal'));
+    },
+    methods: {
+        async api(url, opts = {}) {
+            const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...opts });
+            if (res.status === 401) { window.location.href = '/'; return null; }
+            return res.json();
+        },
+        async loadAll() {
+            const [profile, drives, apps, ivs] = await Promise.all([
+                this.api('/api/company/profile'),
+                this.api('/api/company/drives'),
+                this.loadApplications(),
+                this.api('/api/company/interviews')
+            ]);
+            if (profile) this.profile = profile;
+            if (drives) this.drives = drives;
+            if (ivs) this.interviews = ivs;
+        },
+        debouncedLoadApps() {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => this.loadApplications(), 300);
+        },
+        async loadApplications() {
+            const p = new URLSearchParams();
+            if (this.appFilters.search) p.set('search', this.appFilters.search);
+            if (this.appFilters.status) p.set('status', this.appFilters.status);
+            if (this.appFilters.sortBy) p.set('sort_by', this.appFilters.sortBy);
+            this.applications = await this.api(`/api/company/applications?${p}`) || [];
+        },
+        initSocket() {
+            this.socket = io({ withCredentials: true });
+            this.socket.on('connect', () => { this.connectionStatus = 'Live'; });
+            this.socket.on('disconnect', () => { this.connectionStatus = 'Offline'; });
+            this.socket.on('company_status_changed', (d) => { this.toast(`Status: ${d.status}`); this.profile.approval_status = d.status; });
+            this.socket.on('drive_status_changed', (d) => { this.toast(`Drive "${d.job_title}" → ${d.status}`); this.loadAll(); });
+            this.socket.on('new_application', (d) => { this.toast(`New application: ${d.student_name}`); this.loadAll(); });
+            this.socket.on('notification', (d) => this.toast(d.message));
+        },
+        toast(msg) { this.toasts.unshift(msg); if (this.toasts.length > 5) this.toasts.pop(); },
+        statusBadge(s) { return { pending: 'bg-warning text-dark', approved: 'bg-success', rejected: 'bg-danger' }[s] || 'bg-secondary'; },
+        formatDate(d) { return d ? new Date(d).toLocaleDateString('en-IN', { year:'numeric', month:'short', day:'numeric' }) : 'Not set'; },
+        formatSize(b) { if (!b) return '—'; return b > 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB'; },
+        async createDrive() {
+            const data = await this.api('/api/company/drives', { method: 'POST', body: JSON.stringify(this.newDrive) });
+            if (data) { alert(data.message); this.tab = 'drives'; this.loadAll(); }
+        },
+        async updateStatus(id, status) {
+            if (!status) return;
+            await this.api(`/api/company/applications/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+            this.loadApplications();
+        },
+        downloadResume(appId) { window.open(`/api/company/applications/${appId}/resume/download`, '_blank'); },
+        async previewResume(appId) {
+            this.resumePreviewAppId = appId;
+            this.resumePreview = await this.api(`/api/company/applications/${appId}/resume/preview`);
+            if (this.resumePreview) this.resumeModal.show();
+        },
+        openSchedule(app) {
+            this.scheduleApp = app;
+            this.scheduleForm = { interview_date: '', interview_time: '', interview_type: 'technical', interview_round: 1, location_or_link: '', notes: '' };
+            this.scheduleModal.show();
+        },
+        async submitSchedule() {
+            const payload = { application_id: this.scheduleApp.id, ...this.scheduleForm };
+            const data = await this.api('/api/company/interviews', { method: 'POST', body: JSON.stringify(payload) });
+            if (data) {
+                alert(data.message);
+                this.scheduleModal.hide();
+                this.loadAll();
+            }
+        },
+        toggleDesc(id) {
+            this.expanded = this.expanded || {};
+            this.expanded[id] = !this.expanded[id];
+        },
+        async completeInterview(id) {
+            const feedback = prompt('Interview feedback (optional):') || '';
+            await this.api(`/api/company/interviews/${id}/complete`, { method: 'PUT', body: JSON.stringify({ feedback }) });
+            this.loadAll();
+        },
+        async cancelInterview(id) {
+            if (!confirm('Cancel this interview?')) return;
+            await this.api(`/api/company/interviews/${id}/cancel`, { method: 'PUT' });
+            this.loadAll();
+        },
+        async logout() {
+            await this.api('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+    }
+}).mount('#companyApp');
+</script>
+{% endblock %}

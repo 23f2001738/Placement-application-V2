@@ -1,0 +1,405 @@
+{% extends 'base.html' %}
+{% block title %}Student Dashboard — Placement Portal{% endblock %}
+{% block content %}
+{% raw %}
+<div id="studentApp">
+    <nav class="navbar navbar-expand-lg portal-nav sticky-top">
+        <div class="container">
+            <span class="navbar-brand"><i class="fas fa-briefcase me-2"></i>PlacementHub</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMain">
+                <ul class="navbar-nav ms-auto align-items-lg-center">
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='drives'}" href="#" @click.prevent="tab='drives'">Find Jobs</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='applications'}" href="#" @click.prevent="tab='applications'">Applications</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='resume'}" href="#" @click.prevent="tab='resume'">Resume</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='interviews'}" href="#" @click.prevent="tab='interviews'">
+                        Interviews <span v-if="interviews.length" class="badge bg-warning text-dark">{{ interviews.length }}</span>
+                    </a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='notifications'}" href="#" @click.prevent="tab='notifications'">
+                        <i class="fas fa-bell"></i>
+                        <span v-if="unreadCount" class="badge bg-danger">{{ unreadCount }}</span>
+                    </a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='profile'}" href="#" @click.prevent="tab='profile'">Profile</a></li>
+                    <li class="nav-item ms-lg-2">
+                        <span class="live-dot me-1"></span>
+                        <small class="text-muted me-2">{{ connectionStatus }}</small>
+                        <button @click="logout" class="btn btn-outline-primary btn-sm">Logout</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="toast-container">
+        <div v-for="(n, i) in toasts" :key="i" class="toast show mb-2 shadow">
+            <div class="toast-header">
+                <i class="fas fa-bolt text-warning me-2"></i>
+                <strong class="me-auto">Live Update</strong>
+                <button type="button" class="btn-close" @click="toasts.splice(i,1)"></button>
+            </div>
+            <div class="toast-body">{{ n }}</div>
+        </div>
+    </div>
+
+    <div class="hero-banner mb-4">
+        <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1>Hello, {{ studentName }}!</h1>
+                <p>Discover opportunities and track your placement journey</p>
+            </div>
+            <button @click="exportCsv" class="btn btn-light btn-sm"><i class="fas fa-file-csv me-1"></i> Export Applications</button>
+        </div>
+    </div>
+
+    <div class="container pb-5">
+        <!-- FIND JOBS -->
+        <div v-if="tab==='drives'">
+            <div class="filter-bar mb-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted">Search</label>
+                        <div class="search-wrap">
+                            <i class="fas fa-search"></i>
+                            <input v-model="filters.search" @input="debouncedLoadDrives" class="form-control search-input" placeholder="Job title, company, keywords...">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Min CGPA</label>
+                        <input v-model.number="filters.minCgpa" @change="loadDrives" type="number" step="0.1" min="0" max="10" class="form-control" placeholder="Any">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Sort by</label>
+                        <select v-model="filters.sortBy" @change="loadDrives" class="form-select">
+                            <option value="created_at">Newest</option>
+                            <option value="deadline">Deadline</option>
+                            <option value="company">Company</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button @click="loadDrives" class="btn btn-primary w-100"><i class="fas fa-sync-alt me-1"></i> Refresh</button>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-lg-6 mb-3" v-for="d in drives" :key="d.id">
+                    <div class="card job-card h-100 shadow-sm">
+                        <div class="card-body">
+                            <div class="company-name mb-1">{{ d.company_name }}</div>
+                            <div class="job-title mb-2">{{ d.job_title }}</div>
+                            <div class="mb-1 small text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ d.location || 'Location not specified' }}</div>
+                                <p class="text-muted small mb-3">
+                                    <span v-if="!expanded[d.id]">{{ d.job_description ? (d.job_description.length>120 ? d.job_description.substring(0,120) + '...' : d.job_description) : '' }}</span>
+                                    <span v-else>{{ d.job_description }}</span>
+                                    <a v-if="d.job_description && d.job_description.length>120" href="#" @click.prevent="toggleDesc(d.id)" class="ms-2 small">
+                                        {{ expanded[d.id] ? 'Show less' : 'Read more' }}
+                                    </a>
+                                </p>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <span class="badge bg-light text-dark border" v-if="d.min_cgpa">CGPA ≥ {{ d.min_cgpa }}</span>
+                                <span class="badge bg-light text-dark border" v-if="d.eligible_branches">{{ d.eligible_branches }}</span>
+                                <span class="badge bg-warning text-dark" v-if="d.deadline"><i class="fas fa-clock me-1"></i>{{ formatDate(d.deadline) }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <button v-if="!d.already_applied && d.eligible" @click="apply(d.id)" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-paper-plane me-1"></i> Apply Now
+                                </button>
+                                <span v-else-if="d.already_applied" class="badge bg-secondary badge-status">Applied</span>
+                                <span v-else class="badge bg-danger badge-status">{{ d.eligibility_reason }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div v-if="!drives.length" class="text-center py-5 text-muted">
+                <i class="fas fa-search fa-3x mb-3 opacity-25"></i>
+                <p>No placement drives match your criteria.</p>
+            </div>
+        </div>
+
+        <!-- APPLICATIONS -->
+        <div v-if="tab==='applications'">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3"><h5 class="mb-0"><i class="fas fa-list-alt me-2 text-primary"></i>My Applications</h5></div>
+                <div class="card-body table-responsive p-0">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Company</th><th>Position</th><th>Status</th><th>Applied</th><th>Interviews</th></tr></thead>
+                        <tbody>
+                            <tr v-for="a in applications" :key="a.id">
+                                <td><strong>{{ a.company_name }}</strong></td>
+                                <td>{{ a.drive_title }}</td>
+                                <td><span class="badge badge-status" :class="appBadge(a.status)">{{ a.status }}</span></td>
+                                <td>{{ formatDate(a.application_date) }}</td>
+                                <td>{{ a.interview_count || 0 }} scheduled</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p v-if="!applications.length" class="text-muted text-center py-4 mb-0">No applications yet. Browse jobs and apply!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- RESUME -->
+        <div v-if="tab==='resume'">
+            <div class="row">
+                <div class="col-lg-8 mx-auto">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white py-3"><h5 class="mb-0"><i class="fas fa-file-alt me-2 text-primary"></i>Resume Management</h5></div>
+                        <div class="card-body">
+                            <div class="upload-zone mb-4" :class="{dragover: dragover}"
+                                 @click="$refs.resumeInput.click()"
+                                 @dragover.prevent="dragover=true"
+                                 @dragleave="dragover=false"
+                                 @drop.prevent="handleDrop">
+                                <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
+                                <p class="mb-1 fw-semibold">Drag & drop your resume here</p>
+                                <p class="text-muted small mb-0">or click to browse — PDF, DOC, DOCX (max 5MB)</p>
+                                <input ref="resumeInput" type="file" accept=".pdf,.doc,.docx" class="d-none" @change="uploadResume">
+                            </div>
+                            <div v-if="uploadStatus" :class="'alert alert-' + (uploadStatus.type==='success'?'success':'danger')">{{ uploadStatus.message }}</div>
+                            <div v-if="profile.resume_path" class="d-flex align-items-center justify-content-between p-3 border rounded">
+                                <div>
+                                    <i class="fas fa-file-pdf text-danger fa-lg me-2"></i>
+                                    <strong>{{ resumeFileName }}</strong>
+                                    <div class="text-muted small">Uploaded {{ formatDate(profile.resume_uploaded_at) }}</div>
+                                </div>
+                                <button @click="downloadResume" class="btn btn-primary btn-sm"><i class="fas fa-download me-1"></i> Download</button>
+                            </div>
+                            <div v-else class="alert alert-warning mb-0"><i class="fas fa-exclamation-triangle me-1"></i> Upload a resume before applying to drives.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INTERVIEWS -->
+        <div v-if="tab==='interviews'">
+            <div v-for="iv in interviews" :key="iv.id" class="card interview-card shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5 class="text-primary">{{ iv.company_name }}</h5>
+                            <p class="fw-semibold mb-2">{{ iv.drive_title }}</p>
+                            <p class="mb-1"><i class="fas fa-calendar text-muted me-2"></i>{{ formatDate(iv.interview_date) }} at {{ iv.interview_time || 'TBD' }}</p>
+                            <p class="mb-1"><i class="fas fa-map-marker-alt text-muted me-2"></i>{{ iv.location_or_link || 'Location TBD' }}</p>
+                            <p class="mb-0"><i class="fas fa-layer-group text-muted me-2"></i>Round {{ iv.interview_round }} — {{ iv.interview_type }}</p>
+                        </div>
+                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                            <span class="badge badge-status" :class="iv.status==='scheduled' ? 'bg-warning text-dark' : iv.status==='completed' ? 'bg-success' : iv.status==='declined_by_student' ? 'bg-danger' : 'bg-secondary' ">{{ iv.status.replace('_', ' ') }}</span>
+                            <div v-if="iv.status==='scheduled' && !iv.student_response" class="mt-3">
+                                <button @click="respondInterview(iv.id,'accepted')" class="btn btn-success btn-sm w-100 mb-2"><i class="fas fa-check me-1"></i>Accept</button>
+                                <button @click="respondInterview(iv.id,'declined')" class="btn btn-outline-danger btn-sm w-100"><i class="fas fa-times me-1"></i>Decline</button>
+                            </div>
+                            <div v-else-if="iv.student_response" class="mt-3">
+                                <span class="badge bg-primary">{{ iv.student_response === 'accepted' ? 'Accepted' : 'Declined' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="iv.notes || iv.feedback" class="mt-3 text-muted small">
+                        <p v-if="iv.notes"><strong>Interview Notes:</strong> {{ iv.notes }}</p>
+                        <p v-if="iv.feedback"><strong>Feedback:</strong> {{ iv.feedback }}</p>
+                    </div>
+                    </div>
+                </div>
+            </div>
+            <div v-if="!interviews.length" class="text-center py-5 text-muted">
+                <i class="fas fa-calendar-check fa-3x mb-3 opacity-25"></i>
+                <p>No interviews scheduled yet.</p>
+            </div>
+        </div>
+
+        <!-- NOTIFICATIONS -->
+        <div v-if="tab==='notifications'">
+            <div v-for="n in notifications" :key="n.id"
+                 class="notification-item" :class="{unread: !n.is_read}"
+                 @click="markAsRead(n.id)">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <strong>{{ n.title }}</strong>
+                        <p class="mb-1 small">{{ n.message }}</p>
+                        <small class="text-muted">{{ formatDate(n.created_at) }}</small>
+                    </div>
+                    <span v-if="!n.is_read" class="badge bg-primary rounded-pill d-inline-flex align-items-center justify-content-center" style="font-size: 0.75rem; line-height: 1; padding: 0.25rem 0.45rem; min-width: auto; width: auto;">New</span>
+                </div>
+            </div>
+            <div v-if="!notifications.length" class="text-center py-5 text-muted">
+                <i class="fas fa-bell-slash fa-3x mb-3 opacity-25"></i>
+                <p>No notifications yet.</p>
+            </div>
+        </div>
+
+        <!-- PROFILE -->
+        <div v-if="tab==='profile'">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3"><h5 class="mb-0"><i class="fas fa-user me-2 text-primary"></i>My Profile</h5></div>
+                <div class="card-body">
+                    <form @submit.prevent="saveProfile">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input v-model="profile.name" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email</label>
+                                <input v-model="profile.email" type="email" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Branch</label>
+                                <input v-model="profile.branch" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">CGPA</label>
+                                <input v-model.number="profile.cgpa" type="number" step="0.01" min="0" max="10" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Year</label>
+                                <select v-model.number="profile.year" class="form-select">
+                                    <option v-for="y in [1,2,3,4]" :value="y">Year {{ y }}</option>
+                                </select>
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Skills <small class="text-muted">(comma-separated)</small></label>
+                                <input v-model="profile.skills" class="form-control" placeholder="Python, Java, SQL, React...">
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Bio</label>
+                                <textarea v-model="profile.bio" class="form-control" rows="3" placeholder="Tell recruiters about yourself..."></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Save Profile</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+    data() {
+        return {
+            studentName: {{ name|tojson }},
+            tab: 'drives',
+            filters: { search: '', minCgpa: null, sortBy: 'created_at' },
+            drives: [], applications: [], interviews: [], notifications: [],
+            profile: {}, toasts: [], connectionStatus: 'Connecting...', socket: null,
+            dragover: false, uploadStatus: null, debounceTimer: null,
+            expanded: {}
+        };
+    },
+    computed: {
+        unreadCount() { return this.notifications.filter(n => !n.is_read).length; },
+        resumeFileName() {
+            if (!this.profile.resume_path) return '';
+            return this.profile.resume_path.split('/').pop();
+        }
+    },
+    mounted() { this.loadAll(); this.initSocket(); },
+    methods: {
+        async api(url, opts = {}) {
+            const isForm = opts.body instanceof FormData;
+            const headers = isForm ? {} : { 'Content-Type': 'application/json' };
+            const res = await fetch(url, { credentials: 'include', headers, ...opts });
+            if (res.status === 401) { window.location.href = '/'; return null; }
+            const ct = res.headers.get('content-type') || '';
+            if (ct.includes('application/json')) return res.json();
+            return res;
+        },
+        async loadAll() {
+            await Promise.all([
+                this.loadDrives(), this.loadApplications(), this.loadInterviews(),
+                this.loadNotifications(), this.loadProfile()
+            ]);
+        },
+        debouncedLoadDrives() {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => this.loadDrives(), 300);
+        },
+        async loadDrives() {
+            const p = new URLSearchParams();
+            if (this.filters.search) p.set('search', this.filters.search);
+            if (this.filters.minCgpa) p.set('min_cgpa', this.filters.minCgpa);
+            if (this.filters.sortBy) p.set('sort_by', this.filters.sortBy);
+            this.drives = await this.api(`/api/student/drives?${p}`) || [];
+        },
+        async loadApplications() { this.applications = await this.api('/api/student/applications') || []; },
+        async loadInterviews() { this.interviews = await this.api('/api/student/interviews') || []; },
+        async loadNotifications() { this.notifications = await this.api('/api/student/notifications') || []; },
+        async loadProfile() { this.profile = await this.api('/api/student/profile') || {}; },
+        initSocket() {
+            this.socket = io({ withCredentials: true });
+            this.socket.on('connect', () => { this.connectionStatus = 'Live'; });
+            this.socket.on('disconnect', () => { this.connectionStatus = 'Offline'; });
+            this.socket.on('new_drive', (d) => { this.toast(`New drive: ${d.job_title} at ${d.company_name}${d.location ? ' — ' + d.location : ''}`); this.loadDrives(); });
+            this.socket.on('application_updated', (d) => { this.toast(`Application updated: ${d.drive_title} → ${d.status}`); this.loadApplications(); });
+            this.socket.on('interview_scheduled', () => { this.toast('New interview scheduled!'); this.loadInterviews(); this.loadApplications(); });
+            this.socket.on('export_complete', (d) => this.toast(d.message));
+            this.socket.on('notification', (d) => { this.toast(d.message); this.loadNotifications(); });
+        },
+        toast(msg) { this.toasts.unshift(msg); if (this.toasts.length > 5) this.toasts.pop(); },
+        appBadge(s) {
+            return { applied: 'bg-primary', shortlisted: 'bg-warning text-dark', selected: 'bg-success', rejected: 'bg-danger', interview_scheduled: 'bg-info' }[s] || 'bg-secondary';
+        },
+        formatDate(d) { return d ? new Date(d).toLocaleDateString('en-IN', { year:'numeric', month:'short', day:'numeric' }) : '-'; },
+        async apply(id) {
+            const data = await this.api(`/api/student/apply/${id}`, { method: 'POST' });
+            if (data) { alert(data.message); this.loadAll(); }
+        },
+        async saveProfile() {
+            const data = await this.api('/api/student/profile', { method: 'PUT', body: JSON.stringify(this.profile) });
+            if (data) alert(data.message);
+        },
+        async exportCsv() {
+            const data = await this.api('/api/student/export-applications', { method: 'POST' });
+            if (data) alert(data.message);
+        },
+        handleDrop(e) {
+            this.dragover = false;
+            const file = e.dataTransfer.files[0];
+            if (file) this.doUpload(file);
+        },
+        uploadResume() {
+            const file = this.$refs.resumeInput.files[0];
+            if (file) this.doUpload(file);
+        },
+        async doUpload(file) {
+            const fd = new FormData();
+            fd.append('resume', file);
+            const res = await fetch('/api/student/resume/upload', { method: 'POST', credentials: 'include', body: fd });
+            const data = await res.json();
+            if (res.ok) {
+                this.uploadStatus = { type: 'success', message: 'Resume uploaded successfully!' };
+                this.loadProfile();
+            } else {
+                this.uploadStatus = { type: 'error', message: data.message || 'Upload failed' };
+            }
+            setTimeout(() => this.uploadStatus = null, 5000);
+        },
+        downloadResume() { window.open('/api/student/resume/download', '_blank'); },
+        async respondInterview(id, response) {
+            const data = await this.api(`/api/student/interviews/${id}/response`, {
+                method: 'PUT', body: JSON.stringify({ response })
+            });
+            if (data) { alert(data.message); this.loadInterviews(); }
+        },
+        async markAsRead(id) {
+            await this.api(`/api/student/notifications/${id}/read`, { method: 'PUT' });
+            this.loadNotifications();
+        },
+        toggleDesc(id) {
+            this.expanded = this.expanded || {};
+            this.expanded[id] = !this.expanded[id];
+        },
+        async logout() {
+            await this.api('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+    }
+}).mount('#studentApp');
+</script>
+{% endblock %}

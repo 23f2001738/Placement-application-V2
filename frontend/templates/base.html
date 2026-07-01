@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Placement Portal{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2557a7;
+            --primary-dark: #1a4480;
+            --accent: #008a81;
+            --accent-light: #e6f7f6;
+            --surface: #ffffff;
+            --bg: #f3f2ef;
+            --text: #2d2d2d;
+            --muted: #6c757d;
+            --border: #e8e8e8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .portal-nav {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .portal-nav .navbar-brand {
+            font-weight: 700;
+            color: var(--primary) !important;
+            font-size: 1.25rem;
+        }
+        .portal-nav .nav-link {
+            color: var(--muted) !important;
+            font-weight: 500;
+            padding: 0.5rem 1rem !important;
+            border-radius: 6px;
+            margin: 0 2px;
+        }
+        .portal-nav .nav-link:hover,
+        .portal-nav .nav-link.active {
+            color: var(--primary) !important;
+            background: var(--accent-light);
+        }
+        .hero-banner {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            padding: 2rem 0;
+            border-radius: 0 0 12px 12px;
+        }
+        .hero-banner h1 { font-weight: 700; font-size: 1.75rem; margin: 0; }
+        .hero-banner p { opacity: 0.9; margin: 0.25rem 0 0; }
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            transition: box-shadow 0.2s ease;
+            background: var(--surface);
+        }
+        .card:hover { box-shadow: 0 4px 16px rgba(37,87,167,0.1); }
+        .job-card {
+            border-left: 4px solid var(--primary);
+        }
+        .job-card .company-name {
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .job-card .job-title { font-weight: 700; font-size: 1.1rem; }
+        .stat-card { border-left: 4px solid var(--accent); }
+        .badge-status {
+            padding: 0.35em 0.75em;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+        .btn-accent {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        .btn-accent:hover { background: #006b64; color: white; }
+        .live-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--success); display: inline-block;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 360px; }
+        .upload-zone {
+            border: 2px dashed var(--primary);
+            border-radius: 10px;
+            padding: 2.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #f8faff;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-light);
+        }
+        .filter-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+        .tab-nav .nav-link {
+            color: var(--muted);
+            font-weight: 500;
+            border: none;
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+        }
+        .tab-nav .nav-link.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: transparent;
+        }
+        .notification-item {
+            padding: 12px 16px;
+            border-left: 3px solid var(--primary);
+            background: #f8faff;
+            margin-bottom: 8px;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+        }
+        .notification-item.unread { background: var(--accent-light); border-left-color: var(--accent); }
+        .interview-card { border-left: 4px solid var(--accent); }
+        .search-input {
+            border-radius: 24px;
+            padding-left: 2.5rem;
+            border: 1px solid var(--border);
+        }
+        .search-wrap { position: relative; }
+        .search-wrap i {
+            position: absolute; left: 14px; top: 50%;
+            transform: translateY(-50%); color: var(--muted);
+        }
+        .table thead th {
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--muted);
+            border-bottom-width: 1px;
+        }
+        .login-hero {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            padding: 4rem 0;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

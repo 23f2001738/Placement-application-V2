@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+<style>
+    .admin-table thead th {
+        background: #077293 !important;
+        color: #fff !important;
+        border-bottom: 2px solid rgba(255,255,255,0.5);
+    }
+    .admin-table tbody tr {
+        background: #f5f8ff;
+        transition: background 0.2s ease;
+    }
+    .admin-table tbody tr:hover {
+        background: #e2efff;
+    }
+    .admin-table th,
+    .admin-table td {
+        border-color: rgba(13,110,253,0.12);
+        vertical-align: middle;
+    }
+    .admin-table .badge {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+{% block content %}
+{% raw %}
+<div id="adminApp">
+    <nav class="navbar navbar-expand-lg portal-nav sticky-top">
+        <div class="container">
+            <span class="navbar-brand"><i class="fas fa-university me-2"></i>Admin Portal</span>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="adminNav">
+                <ul class="navbar-nav ms-auto align-items-lg-center">
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='companies'}" href="#" @click.prevent="tab='companies'">Companies</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='students'}" href="#" @click.prevent="tab='students'">Students</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='drives'}" href="#" @click.prevent="tab='drives'">Drives</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: tab==='applications'}" href="#" @click.prevent="tab='applications'">Applications</a></li>
+                    <li class="nav-item d-flex align-items-center ms-lg-3 me-3">
+                        <span class="live-dot me-2"></span>
+                        <small class="text-muted">{{ connectionStatus }}</small>
+                    </li>
+                    <li class="nav-item">
+                        <button @click="logout" class="btn btn-outline-primary btn-sm">Logout</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="toast-container">
+        <div v-for="(n, i) in notifications" :key="i" class="toast show mb-2 shadow" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">Live Update</strong>
+                <button type="button" class="btn-close" @click="notifications.splice(i,1)"></button>
+            </div>
+            <div class="toast-body">{{ n }}</div>
+        </div>
+    </div>
+
+    <div class="hero-banner mb-4">
+        <div class="container d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h1>Admin Dashboard</h1>
+                <p>Manage companies, students, drives, and applications from one central portal.</p>
+            </div>
+            <button @click="downloadReport('placement-summary')" class="btn btn-light btn-sm"><i class="fas fa-file-pdf me-1"></i> Generate Report</button>
+        </div>
+    </div>
+
+    <div class="container pb-5">
+        <div class="row gy-3 mb-4">
+            <div class="col-md-3" v-for="(val, key) in stats" :key="key">
+                <div class="card stat-card shadow-sm">
+                    <div class="card-body text-center">
+                        <h3 class="text-primary">{{ val }}</h3>
+                        <small class="text-muted text-capitalize">{{ key.replace('_', ' ') }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row gy-3">
+                    <div class="col-md-6">
+                        <button @click="downloadReport('placement-summary')" class="btn btn-danger w-100">
+                            <i class="fas fa-download me-2"></i> Placement Summary
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button @click="downloadReport('student-placement')" class="btn btn-danger w-100">
+                            <i class="fas fa-download me-2"></i> Student Placement
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button @click="downloadReport('company-performance')" class="btn btn-danger w-100">
+                            <i class="fas fa-download me-2"></i> Company Performance
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button @click="downloadReport('applications')" class="btn btn-danger w-100">
+                            <i class="fas fa-download me-2"></i> Applications Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="mb-3" v-if="tab==='companies' || tab==='students'">
+                    <input v-model="search" @input="searchData" class="form-control" :placeholder="'Search ' + tab + '...'">
+                </div>
+
+                <div v-if="tab==='companies'" class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 admin-table">
+                        <thead><tr><th>Name</th><th>HR Contact</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <tr v-for="c in companies" :key="c.id">
+                                <td>{{ c.name }}</td>
+                                <td>{{ c.hr_contact || '-' }}</td>
+                                <td><span class="badge" :class="statusBadge(c.status)">{{ c.status }}</span></td>
+                                <td>
+                                    <button v-if="c.status==='pending'" @click="approveCompany(c.id,'approve')" class="btn btn-success btn-sm me-1">Approve</button>
+                                    <button v-if="c.status==='pending'" @click="approveCompany(c.id,'reject')" class="btn btn-danger btn-sm me-1">Reject</button>
+                                    <button @click="toggleActive('company', c.id)" class="btn btn-warning btn-sm">{{ c.is_active ? 'Deactivate' : 'Activate' }}</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div v-if="tab==='students'" class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 admin-table">
+                        <thead><tr><th>Name</th><th>Branch</th><th>CGPA</th><th>Year</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <tr v-for="s in students" :key="s.id">
+                                <td>{{ s.name }}</td>
+                                <td>{{ s.branch }}</td>
+                                <td>{{ s.cgpa }}</td>
+                                <td>{{ s.year }}</td>
+                                <td>
+                                    <button @click="toggleActive('student', s.id)" class="btn btn-warning btn-sm">{{ s.is_active ? 'Deactivate' : 'Activate' }}</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div v-if="tab==='drives'" class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 admin-table">
+                        <thead><tr><th>Title</th><th>Company</th><th>Location</th><th>Status</th><th>Applicants</th><th>Actions</th></tr></thead>
+                        <tbody>
+                            <tr v-for="d in drives" :key="d.id">
+                                <td>{{ d.job_title }}</td>
+                                <td>{{ d.company_name }}</td>
+                                <td>{{ d.location || '-' }}</td>
+                                <td><span class="badge" :class="statusBadge(d.status)">{{ d.status }}</span></td>
+                                <td>{{ d.applicants }}</td>
+                                <td>
+                                    <button v-if="d.status==='pending'" @click="approveDrive(d.id,'approve')" class="btn btn-success btn-sm me-1">Approve</button>
+                                    <button v-if="d.status==='pending'" @click="approveDrive(d.id,'reject')" class="btn btn-danger btn-sm">Reject</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div v-if="tab==='applications'" class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 admin-table">
+                        <thead><tr><th>Student</th><th>Company</th><th>Drive</th><th>Status</th><th>Date</th></tr></thead>
+                        <tbody>
+                            <tr v-for="a in applications" :key="a.id">
+                                <td>{{ a.student_name }}</td>
+                                <td>{{ a.company_name }}</td>
+                                <td>{{ a.drive_title }}</td>
+                                <td><span class="badge bg-info">{{ a.status }}</span></td>
+                                <td>{{ formatDate(a.application_date) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const { createApp } = Vue;
+createApp({
+    data() {
+        return {
+            tab: 'companies', search: '', stats: {},
+            companies: [], students: [], drives: [], applications: [],
+            notifications: [], connectionStatus: 'Connecting...', socket: null
+        };
+    },
+    mounted() {
+        this.loadAll();
+        this.initSocket();
+    },
+    methods: {
+        async api(url, opts = {}) {
+            const res = await fetch(url, { credentials: 'include', headers: {'Content-Type': 'application/json'}, ...opts });
+            if (res.status === 401) { window.location.href = '/'; return null; }
+            return res.json();
+        },
+        async loadAll() {
+            const [stats, companies, students, drives, apps] = await Promise.all([
+                this.api('/api/admin/stats'),
+                this.api('/api/admin/companies'),
+                this.api('/api/admin/students'),
+                this.api('/api/admin/drives'),
+                this.api('/api/admin/applications')
+            ]);
+            if (stats) this.stats = stats;
+            if (companies) this.companies = companies;
+            if (students) this.students = students;
+            if (drives) this.drives = drives;
+            if (apps) this.applications = apps;
+        },
+        initSocket() {
+            this.socket = io({ withCredentials: true });
+            this.socket.on('connect', () => { this.connectionStatus = 'Live'; });
+            this.socket.on('disconnect', () => { this.connectionStatus = 'Offline'; });
+            this.socket.on('connected', () => { this.notify('Real-time connection active'); });
+            this.socket.on('stats_updated', (s) => { this.stats = s; });
+            this.socket.on('company_registered', (d) => { this.notify(`New company registered: ${d.name}`); this.loadAll(); });
+            this.socket.on('student_registered', (d) => { this.notify(`New student: ${d.name}`); this.loadAll(); });
+            this.socket.on('drive_created', (d) => { this.notify(`New drive: ${d.job_title}${d.location ? ' — ' + d.location : ''}`); this.loadAll(); });
+            this.socket.on('application_submitted', (d) => { this.notify(`${d.student_name} applied to ${d.drive_title}`); this.loadAll(); });
+            this.socket.on('company_updated', () => this.loadAll());
+            this.socket.on('drive_updated', () => this.loadAll());
+            this.socket.on('notification', (d) => this.notify(d.message));
+        },
+        notify(msg) { this.notifications.unshift(msg); if (this.notifications.length > 5) this.notifications.pop(); },
+        statusBadge(s) {
+            return { pending: 'bg-warning', approved: 'bg-success', rejected: 'bg-danger', closed: 'bg-secondary' }[s] || 'bg-secondary';
+        },
+        formatDate(d) { return d ? new Date(d).toLocaleDateString() : '-'; },
+        async approveCompany(id, action) {
+            await this.api(`/api/admin/approve/company/${id}`, { method: 'POST', body: JSON.stringify({ action }) });
+            this.loadAll();
+        },
+        async approveDrive(id, action) {
+            await this.api(`/api/admin/approve/drive/${id}`, { method: 'POST', body: JSON.stringify({ action }) });
+            this.loadAll();
+        },
+        async toggleActive(role, id) {
+            await this.api(`/api/admin/deactivate/${role}/${id}`, { method: 'POST', body: JSON.stringify({}) });
+            this.loadAll();
+        },
+        async searchData() {
+            if (this.tab === 'companies') this.companies = await this.api(`/api/admin/companies?search=${this.search}`);
+            if (this.tab === 'students') this.students = await this.api(`/api/admin/students?search=${this.search}`);
+        },
+        async downloadReport(reportType) {
+            const url = `/api/admin/reports/${reportType}`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${reportType}_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            this.notify(`📄 ${reportType} report generated successfully!`);
+        },
+        async logout() {
+            await this.api('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+    }
+}).mount('#adminApp');
+</script>
+{% endblock %}

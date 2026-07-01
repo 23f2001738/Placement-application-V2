@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Login — Placement Portal{% endblock %}
+{% block content %}
+<div class="login-hero text-center">
+    <div class="container">
+        <h1 class="display-5 fw-bold mb-2"><i class="fas fa-briefcase me-2"></i>PlacementHub</h1>
+        <p class="lead mb-0 opacity-90">Find internships & campus placements — Built for your institute</p>
+    </div>
+</div>
+
+<div class="container mt-n4">
+    <div class="row justify-content-center">
+        <div class="col-lg-5 col-md-7">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <h3 class="text-center mb-1 fw-bold">Welcome back</h3>
+                    <p class="text-center text-muted mb-4">Sign in to your account</p>
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">Username</label>
+                            <input type="text" id="username" class="form-control form-control-lg" placeholder="Enter username" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small text-muted">Password</label>
+                            <input type="password" id="password" class="form-control form-control-lg" placeholder="Enter password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg w-100">Sign In</button>
+                    </form>
+                    <hr class="my-4">
+                    <p class="text-center text-muted small mb-3">New to PlacementHub?</p>
+                    <div class="d-grid gap-2">
+                        <a href="/register/student" class="btn btn-outline-primary"><i class="fas fa-user-graduate me-2"></i>Register as Student</a>
+                        <a href="/register/company" class="btn btn-outline-secondary"><i class="fas fa-building me-2"></i>Register as Company</a>
+                    </div>
+                    <p class="text-center text-muted small mt-4 mb-0">Demo admin: <code>admin</code> / <code>admin123</code></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            })
+        });
+        const data = await res.json();
+        if (data.role) {
+            const routes = { admin: '/admin/dashboard', student: '/student/dashboard', company: '/company/dashboard' };
+            window.location.href = routes[data.role];
+        } else {
+            alert(data.message || 'Login failed');
+            btn.disabled = false;
+            btn.textContent = 'Sign In';
+        }
+    } catch (err) {
+        alert('Connection error. Is the server running?');
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+    }
+});
+</script>
+{% endblock %}
