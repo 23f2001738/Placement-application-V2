@@ -1,0 +1,114 @@
+openapi: 3.0.0
+info:
+  title: Placement Portal API
+  version: 1.0.0
+  description: API definition for the placement portal application.
+servers:
+  - url: http://127.0.0.1:5000
+paths:
+  /api/auth/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+  /api/auth/logout:
+    post:
+      summary: User logout
+      responses:
+        '200':
+          description: Logout successful
+  /api/admin/stats:
+    get:
+      summary: Get admin dashboard statistics
+      responses:
+        '200':
+          description: Returns admin statistics
+  /api/admin/companies:
+    get:
+      summary: List companies for admin
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Company list
+  /api/admin/students:
+    get:
+      summary: List students for admin
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Student list
+  /api/admin/drives:
+    get:
+      summary: List drives for admin
+      responses:
+        '200':
+          description: Drive list
+  /api/admin/applications:
+    get:
+      summary: List applications for admin
+      responses:
+        '200':
+          description: Application list
+  /api/company/profile:
+    get:
+      summary: Get current company profile
+      responses:
+        '200':
+          description: Company profile
+  /api/company/drives:
+    get:
+      summary: Get company drives
+      responses:
+        '200':
+          description: Company drives
+  /api/company/applications:
+    get:
+      summary: Get company applications
+      responses:
+        '200':
+          description: Company applications
+  /api/student/drives:
+    get:
+      summary: Get approved drives for student
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: min_cgpa
+          schema:
+            type: number
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Student drive list
+  /api/student/applications:
+    get:
+      summary: Get student applications
+      responses:
+        '200':
+          description: Student applications
