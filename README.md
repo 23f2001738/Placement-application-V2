@@ -6,8 +6,7 @@ This project is a Flask-based placement portal with Vue.js frontend templates an
 ## Folder Structure
 - `backend/` — Flask application, routes, models, services, and Celery tasks
 - `frontend/` — Jinja templates and static assets for the UI
-- `submission_metadata.yaml` — project metadata and API documentation reference
-- `api_definition.yaml` — YAML definition of the API endpoints
+- `api.yaml` — YAML definition of the API endpoints
 - `requirements.txt` — Python dependencies
 
 ## Prerequisites
