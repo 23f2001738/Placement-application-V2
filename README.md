@@ -12,27 +12,23 @@ This project is a Flask-based placement portal with Vue.js frontend templates an
 ## Prerequisites
 - Python 3.10+ installed
 - Redis running locally on `localhost:6379`
-- Recommended: virtual environment
 
 ## Setup
 1. Open a terminal in the project root.
-2. Create a virtual environment:
+2. Install dependencies using the system Python interpreter:
    ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
+   python -m pip install --user -r requirements.txt
    ```
-3. Install dependencies:
-   ```powershell
-   pip install -r requirements.txt
-   ```
-4. Run the application:
+3. Run the application:
    ```powershell
    python backend\app.py
    ```
-5. Open the browser at:
+4. Open the browser at:
    ```
    http://127.0.0.1:5000
    ```
+
+> If `python` is not recognized on Windows, use `py` instead, for example: `py -m pip install --user -r requirements.txt`.
 
 ## Default Admin Login
 - Username: `admin`
