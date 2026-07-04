@@ -43,7 +43,6 @@ This project is a Flask-based placement portal with Vue.js frontend templates an
 - The SQLite database is created automatically when the app starts.
 - Uploaded resumes are stored under `uploads/`.
 - Templates are served from `frontend/templates/`.
-- Static assets are served from `frontend/static/`.
 
 ## API Definition
 The API endpoints are described in `api.yaml`.
