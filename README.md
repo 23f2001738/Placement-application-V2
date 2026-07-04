@@ -46,4 +46,4 @@ This project is a Flask-based placement portal with Vue.js frontend templates an
 - Static assets are served from `frontend/static/`.
 
 ## API Definition
-The API endpoints are described in `api_definition.yaml`.
+The API endpoints are described in `api.yaml`.
