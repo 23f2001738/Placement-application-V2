@@ -1,43 +1,115 @@
-# Placement Portal Application V2
+# Placement Portal Application
 
-## Overview
-This project is a Flask-based placement portal with Vue.js frontend templates and Bootstrap styling. It supports three user roles: Admin, Company, and Student.
+A comprehensive campus placement management system built with **Flask**, **Vue.js** (via Jinja templates), **SQLite**, **Redis**, and **Celery**.
 
-## Folder Structure
-- `backend/` — Flask application, routes, models, services, and Celery tasks
-- `frontend/` — Jinja templates and static assets for the UI
-- `api.yaml` — YAML definition of the API endpoints
-- `requirements.txt` — Python dependencies
+## Features
+
+### Admin
+- Dashboard with real-time statistics
+- Approve/reject companies and placement drives
+- Manage students and companies (activate/deactivate/blacklist)
+- Generate PDF reports (Placement Summary, Student-wise, Company Performance, Applications)
+
+### Company
+- Register and get approved by admin
+- Post placement drives with eligibility criteria
+- View and manage applications
+- Download student resumes
+- Schedule and manage interviews
+- Real-time notifications
+
+### Student
+- Browse and filter placement drives
+- Apply to eligible drives
+- Upload and manage resume (PDF/DOC/DOCX)
+- Track application status
+- View and respond to interview schedules
+- Export application history via email
+- Real-time notifications
+
+### General
+- Real-time updates using Flask-SocketIO + Redis
+- Background jobs with Celery + Redis
+- Secure file upload with validation
+- Responsive Bootstrap UI
+
+## Tech Stack
+
+- **Backend**: Flask, Flask-SQLAlchemy, Flask-SocketIO
+- **Database**: SQLite
+- **Cache & Real-time**: Redis
+- **Background Tasks**: Celery + Redis
+- **Frontend**: Jinja2 Templates + Vue.js (CDN) + Bootstrap 5
+- **PDF Generation**: ReportLab
+- **Others**: Flask-CORS, Werkzeug
 
 ## Prerequisites
-- Python 3.10+ installed
-- Redis running locally on `localhost:6379`
 
-## Setup
-1. Open a terminal in the project root.
-2. Install dependencies using the system Python interpreter:
-   ```powershell
-   python -m pip install --user -r requirements.txt
-   ```
-3. Run the application:
-   ```powershell
-   python backend\app.py
-   ```
-4. Open the browser at:
-   ```
-   http://127.0.0.1:5000
+- Python 3.10+
+- Redis server running on `localhost:6379`
+
+## Setup Instructions
+
+1. **Clone / Extract** the project
+
+2. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
    ```
 
-> If `python` is not recognized on Windows, use `py` instead, for example: `py -m pip install --user -r requirements.txt`.
+3. **Start Redis** (Make sure Redis is running)
+   ```bash
+   # Windows
+   redis-server
 
-## Default Admin Login
-- Username: `admin`
-- Password: `admin123`
+   # Linux/Mac
+   sudo systemctl start redis-server
+   ```
 
-## Notes
-- The SQLite database is created automatically when the app starts.
-- Uploaded resumes are stored under `uploads/`.
-- Templates are served from `frontend/templates/`.
+4. **Run the Application**
+   ```bash
+   python backend/app.py
+   ```
 
-## API Definition
-The API endpoints are described in `api.yaml`.
+5. **Access the Application**
+   Open your browser and go to: **http://127.0.0.1:5000**
+
+## Default Credentials
+
+- **Admin**
+  - Username: `admin`
+  - Password: `admin123`
+
+## Project Structure
+
+```
+placement_portal/
+├── backend/
+│   ├── app.py
+│   ├── models/
+│   ├── routes/
+│   ├── services/
+│   ├── tasks/
+│   ├── utils/
+│   └── instance/placement.db
+├── frontend/
+│   └── templates/
+├── uploads/
+│   └── resumes/
+├── requirements.txt
+├── README.md
+└── api.yaml
+```
+
+## Key Features Implemented
+
+- Role-based authentication (Admin, Company, Student)
+- Resume upload & download
+- Real-time notifications & live updates
+- Advanced filtering and search
+- PDF report generation
+- Background email exports and reminders
+
+---
+
+**Note**: Detailed API documentation is available in [`api.yaml`](./api.yaml).
