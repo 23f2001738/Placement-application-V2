@@ -1,14 +1,21 @@
 openapi: 3.0.0
 info:
   title: Placement Portal API
-  version: 1.0.0
-  description: API definition for the placement portal application.
+  version: 2.0.0
+  description: Comprehensive Placement Management System API
+  contact:
+    name: Placement Portal Team
+
 servers:
   - url: http://127.0.0.1:5000
+    description: Development Server
+
 paths:
+
+  # ====================== AUTH ======================
   /api/auth/login:
     post:
-      summary: User login
+      summary: User Login
       requestBody:
         required: true
         content:
@@ -16,99 +23,178 @@ paths:
             schema:
               type: object
               properties:
-                username:
-                  type: string
-                password:
-                  type: string
+                username: { type: string }
+                password: { type: string }
       responses:
-        '200':
-          description: Login successful
+        '200': { description: Login successful }
+        '401': { description: Invalid credentials }
+
+  /api/auth/register/student:
+    post:
+      summary: Register Student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                password: { type: string }
+                name: { type: string }
+                email: { type: string }
+                branch: { type: string }
+                cgpa: { type: number }
+                year: { type: integer }
+
+  /api/auth/register/company:
+    post:
+      summary: Register Company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                password: { type: string }
+                name: { type: string }
+                email: { type: string }
+                company_name: { type: string }
+                hr_contact: { type: string }
+                website: { type: string }
+
   /api/auth/logout:
     post:
-      summary: User logout
+      summary: Logout User
       responses:
-        '200':
-          description: Logout successful
+        '200': { description: Logged out successfully }
+
+  /api/auth/me:
+    get:
+      summary: Get Current User Profile
+      responses:
+        '200': { description: User profile }
+
+  # ====================== ADMIN ======================
   /api/admin/stats:
     get:
-      summary: Get admin dashboard statistics
+      summary: Get Admin Dashboard Statistics
       responses:
-        '200':
-          description: Returns admin statistics
+        '200': { description: Statistics returned }
+
   /api/admin/companies:
     get:
-      summary: List companies for admin
+      summary: List All Companies
       parameters:
-        - in: query
-          name: search
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Company list
+        - name: search
+          in: query
+          schema: { type: string }
+
   /api/admin/students:
     get:
-      summary: List students for admin
+      summary: List All Students
       parameters:
-        - in: query
-          name: search
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Student list
+        - name: search
+          in: query
+          schema: { type: string }
+
   /api/admin/drives:
     get:
-      summary: List drives for admin
-      responses:
-        '200':
-          description: Drive list
+      summary: List All Placement Drives
+
   /api/admin/applications:
     get:
-      summary: List applications for admin
-      responses:
-        '200':
-          description: Application list
-  /api/company/profile:
-    get:
-      summary: Get current company profile
-      responses:
-        '200':
-          description: Company profile
-  /api/company/drives:
-    get:
-      summary: Get company drives
-      responses:
-        '200':
-          description: Company drives
-  /api/company/applications:
-    get:
-      summary: Get company applications
-      responses:
-        '200':
-          description: Company applications
+      summary: List All Applications
+
+  /api/admin/approve/company/{company_id}:
+    post:
+      summary: Approve/Reject Company
+
+  /api/admin/approve/drive/{drive_id}:
+    post:
+      summary: Approve/Reject Placement Drive
+
+  # ====================== STUDENT ======================
   /api/student/drives:
     get:
-      summary: Get approved drives for student
+      summary: Get Available Placement Drives
       parameters:
-        - in: query
-          name: search
-          schema:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: min_cgpa
+          in: query
+          schema: { type: number }
+        - name: branch
+          in: query
+          schema: { type: string }
+        - name: year
+          in: query
+          schema: { type: integer }
+        - name: sort_by
+          in: query
+          schema: 
             type: string
-        - in: query
-          name: min_cgpa
-          schema:
-            type: number
-        - in: query
-          name: sort_by
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Student drive list
+            enum: [created_at, deadline, company]
+
   /api/student/applications:
     get:
-      summary: Get student applications
-      responses:
-        '200':
-          description: Student applications
+      summary: Get Student's Applications
+
+  /api/student/apply/{drive_id}:
+    post:
+      summary: Apply to a Placement Drive
+
+  /api/student/resume/upload:
+    post:
+      summary: Upload Resume
+
+  /api/student/resume/download:
+    get:
+      summary: Download Own Resume
+
+  /api/student/export-applications:
+    post:
+      summary: Export Applications as CSV (via email)
+
+  # ====================== COMPANY ======================
+  /api/company/profile:
+    get:
+      summary: Get Company Profile
+    put:
+      summary: Update Company Profile
+
+  /api/company/drives:
+    get:
+      summary: Get Company's Drives
+    post:
+      summary: Create New Placement Drive
+
+  /api/company/applications:
+    get:
+      summary: Get Applications for Company's Drives
+
+  /api/company/applications/{app_id}/status:
+    put:
+      summary: Update Application Status
+
+  /api/company/interviews:
+    get:
+      summary: Get Scheduled Interviews
+    post:
+      summary: Schedule New Interview
+
+  # ====================== REPORTS ======================
+  /api/admin/reports/placement-summary:
+    get:
+      summary: Download Placement Summary PDF Report
+
+  /api/admin/reports/student-placement:
+    get:
+      summary: Download Student Placement Report
+
+  /api/admin/reports/company-performance:
+    get:
+      summary: Download Company Performance Report
