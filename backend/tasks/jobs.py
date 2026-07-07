@@ -7,8 +7,29 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from pathlib import Path
 
 from tasks.celery_app import celery_app
+
+
+def _load_env():
+    env_path = Path(__file__).resolve().parents[2] / '.env'
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding='utf-8').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_env()
 
 
 def _get_app_context():
@@ -19,6 +40,10 @@ def _get_app_context():
 def _send_email(to_email, subject, html_body, attachment=None, filename='report.csv'):
     mail_user = os.getenv('MAIL_USERNAME', 'your_email@gmail.com')
     mail_pass = os.getenv('MAIL_PASSWORD', 'your_app_password')
+    mail_server = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    mail_port = int(os.getenv('MAIL_PORT', '587'))
+    use_tls = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
+
     if mail_user == 'your_email@gmail.com':
         print(f'[EMAIL DEMO] To: {to_email} | Subject: {subject}')
         print(html_body[:200])
@@ -37,10 +62,17 @@ def _send_email(to_email, subject, html_body, attachment=None, filename='report.
         part.add_header('Content-Disposition', f'attachment; filename={filename}')
         msg.attach(part)
 
-    with smtplib.SMTP('smtp.gmail.com', 587) as server:
-        server.starttls()
-        server.login(mail_user, mail_pass)
-        server.send_message(msg)
+    try:
+        with smtplib.SMTP(mail_server, mail_port, timeout=20) as server:
+            server.ehlo()
+            if use_tls:
+                server.starttls()
+            server.login(mail_user, mail_pass)
+            server.send_message(msg)
+        print(f'[EMAIL SENT] To: {to_email} | Subject: {subject}')
+    except Exception as exc:
+        print(f'[EMAIL ERROR] To: {to_email} | Subject: {subject} | Error: {exc}')
+        raise
 
 
 @celery_app.task(name='tasks.jobs.export_applications_csv')
