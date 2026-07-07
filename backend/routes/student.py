@@ -167,6 +167,12 @@ def apply_to_drive(drive_id):
         return jsonify({'message': reason}), 400
 
     application = Application(student_id=student.id, drive_id=drive_id, status='applied')
+    
+    # Auto-link student's resume if they have one
+    if student.resume_path:
+        application.resume_path = student.resume_path
+        application.resume_uploaded_at = student.resume_uploaded_at
+    
     db.session.add(application)
     db.session.commit()
     invalidate_dashboard_cache()
