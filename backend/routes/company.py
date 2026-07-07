@@ -148,16 +148,57 @@ def get_applications():
         'id': a.id,
         'student_id': a.student_id,
         'student_name': a.student.user.name if a.student and a.student.user else '',
+        'email': a.student.user.email if a.student and a.student.user else '',
         'branch': a.student.branch if a.student else '',
+        'year': a.student.year if a.student else None,
         'cgpa': a.student.cgpa if a.student else None,
+        'skills': a.student.skills if a.student else '',
+        'bio': a.student.bio if a.student else '',
+        'is_verified': a.student.is_verified if a.student else False,
         'drive_id': a.drive_id,
         'drive_title': a.drive.job_title if a.drive else '',
         'drive_location': a.drive.location if a.drive else '',
         'status': a.status,
         'application_date': a.application_date.isoformat() if a.application_date else None,
+        'resume_path': a.resume_path if a.resume_path else (a.student.resume_path if a.student else None),
+        'resume_uploaded_at': (a.resume_uploaded_at.isoformat() if a.resume_uploaded_at else 
+                               (a.student.resume_uploaded_at.isoformat() if a.student and a.student.resume_uploaded_at else None)),
         'has_resume': (a.resume_path is not None) or (a.student and a.student.resume_path is not None),
         'interview_count': len(a.interviews) if a.interviews else 0
     } for a in apps])
+
+
+@company_bp.route('/applications/<int:app_id>/student-profile', methods=['GET'])
+@login_required(roles=['company'])
+def get_applicant_profile(app_id):
+    """Get complete student profile for an applicant"""
+    company = _get_company()
+    application = Application.query.get(app_id)
+    
+    if not application or not application.drive or application.drive.company_id != company.id:
+        return jsonify({'message': 'Application not found'}), 404
+    
+    student = application.student
+    if not student:
+        return jsonify({'message': 'Student not found'}), 404
+    
+    return jsonify({
+        'student_id': student.id,
+        'name': student.user.name,
+        'email': student.user.email,
+        'branch': student.branch,
+        'year': student.year,
+        'cgpa': student.cgpa,
+        'skills': student.skills,
+        'bio': student.bio,
+        'is_verified': student.is_verified,
+        'resume_path': student.resume_path,
+        'resume_uploaded_at': student.resume_uploaded_at.isoformat() if student.resume_uploaded_at else None,
+        'application_id': application.id,
+        'application_status': application.status,
+        'applied_on': application.application_date.isoformat() if application.application_date else None,
+        'drive_title': application.drive.job_title if application.drive else '',
+    })
 
 
 @company_bp.route('/applications/<int:app_id>/status', methods=['PUT'])
@@ -250,7 +291,8 @@ def preview_application_resume(app_id):
         'resume_path': resume_path,
         'file_type': file_ext,
         'file_size': file_size,
-        'uploaded_at': application.resume_uploaded_at.isoformat() if application.resume_uploaded_at else None
+        'uploaded_at': (application.resume_uploaded_at.isoformat() if application.resume_uploaded_at 
+                       else (student.resume_uploaded_at.isoformat() if student.resume_uploaded_at else None))
     })
 
 
