@@ -155,4 +155,4 @@ if __name__ == '__main__':
     with app.app_context():
         init_db()
     print('Server started at http://127.0.0.1:5000')
-    socketio.run(app, debug=True, host='127.0.0.1', port=5000, allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=True, host='127.0.0.1', port=5000, allow_unsafe_werkzeug=True, use_reloader=False)
