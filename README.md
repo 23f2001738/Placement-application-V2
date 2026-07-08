@@ -83,22 +83,61 @@ A comprehensive campus placement management system built with **Flask**, **Vue.j
 ## Project Structure
 
 ```
-placement_portal/
-├── backend/
-│   ├── app.py
-│   ├── models/
-│   ├── routes/
-│   ├── services/
-│   ├── tasks/
-│   ├── utils/
-│   └── instance/placement.db
-├── frontend/
-│   └── templates/
-├── uploads/
-│   └── resumes/
-├── requirements.txt
+.
+├── api.yaml
 ├── README.md
-└── api.yaml
+├── requirements.txt
+├── backend/
+│   ├── __init__.py
+│   ├── app.py
+│   ├── database.py
+│   ├── extensions.py
+│   ├── socket_events.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── application.py
+│   │   ├── company.py
+│   │   ├── drive.py
+│   │   ├── interview.py
+│   │   ├── notification.py
+│   │   ├── student.py
+│   │   └── user.py
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── auth.py
+│   │   ├── company.py
+│   │   └── student.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── cache_service.py
+│   │   ├── notification_service.py
+│   │   ├── pdf_service.py
+│   │   └── realtime.py
+│   ├── tasks/
+│   │   ├── __init__.py
+│   │   ├── celery_app.py
+│   │   └── jobs.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── auth_helpers.py
+│       └── file_handler.py
+├── frontend/
+│   ├── static/
+│   │   ├── app.js
+│   │   ├── company_dashboard.js
+│   │   └── student_dashboard.js
+│   └── templates/
+│       ├── admin_dashboard.html
+│       ├── base.html
+│       ├── company_dashboard.html
+│       ├── login.html
+│       ├── register_company.html
+│       ├── register_student.html
+│       └── student/
+│           ├── dashboard.html
+│           └── scripts_backup.txt
+└── uploads/
 ```
 
 ## Key Features Implemented
