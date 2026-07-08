@@ -18,7 +18,13 @@
                         <input type="email" id="email" class="form-control" placeholder="Email" required>
                     </div>
                     <div class="mb-3">
-                        <input type="password" id="password" class="form-control" placeholder="Password" required>
+                        <label class="form-label small text-muted">Password</label>
+                        <div class="input-group">
+                            <input type="password" id="password" class="form-control" placeholder="Password" required>
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-md-4 mb-3">
@@ -42,6 +48,21 @@
 </div>
 
 <script>
+document.getElementById('togglePassword').addEventListener('click', function() {
+    const passwordInput = document.getElementById('password');
+    const toggleBtn = this.querySelector('i');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.classList.remove('fa-eye');
+        toggleBtn.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        toggleBtn.classList.remove('fa-eye-slash');
+        toggleBtn.classList.add('fa-eye');
+    }
+});
+
 document.getElementById('registerStudentForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = {
