@@ -1,20 +1,46 @@
 import os
-from flask import Flask, render_template, session, redirect, url_for
+from flask import Flask, jsonify, render_template, session
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager
 from database import db
 from extensions import redis_client, socketio
+from dotenv import load_dotenv
+
+load_dotenv()
 
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 frontend_dir = os.path.join(base_dir, 'frontend')
-app = Flask(__name__, template_folder=os.path.join(frontend_dir, 'templates'), static_folder=os.path.join(frontend_dir, 'static'))
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'super_secret_key')
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(frontend_dir, 'templates'),
+    static_folder=os.path.join(frontend_dir, 'static'),
+    static_url_path='/static'
+)
+
+# Configuration
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'super_secret_key_change_in_production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///placement.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'uploads')
 
+# JWT Configuration
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', app.config['SECRET_KEY'])
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
+app.config['JWT_HEADER_NAME'] = 'Authorization'
+app.config['JWT_HEADER_TYPE'] = 'Bearer'
+
+# Initialize extensions
 db.init_app(app)
-CORS(app, supports_credentials=True)
+jwt = JWTManager(app)
+
+# CORS Configuration for Vue.js frontend
+CORS(app, 
+     origins=['http://localhost:5173', 'http://localhost:3000'],
+     supports_credentials=True,
+     allow_headers=['Content-Type', 'Authorization'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'])
+
 
 try:
     redis_client.ping()
@@ -22,8 +48,10 @@ try:
 except Exception:
     socketio.init_app(app)
 
-os.makedirs('uploads', exist_ok=True)
+# Create uploads directory
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# Register API blueprints
 from routes.auth import auth_bp
 from routes.admin import admin_bp
 from routes.company import company_bp
@@ -34,125 +62,98 @@ app.register_blueprint(admin_bp, url_prefix='/api/admin')
 app.register_blueprint(company_bp, url_prefix='/api/company')
 app.register_blueprint(student_bp, url_prefix='/api/student')
 
-import socket_events  # noqa: E402, F401
+# Socket.io events
+try:
+    import socket_events  # noqa: E402, F401
+except ImportError:
+    pass
 
 
-def _require_role(role):
-    if session.get('role') != role:
-        return redirect(url_for('index'))
-    return None
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'message': 'Endpoint not found'}), 404
 
 
-@app.route('/')
-def index():
-    if session.get('user_id'):
-        role = session.get('role')
-        if role == 'admin':
-            return redirect(url_for('admin_dashboard'))
-        if role == 'student':
-            return redirect(url_for('student_dashboard'))
-        if role == 'company':
-            return redirect(url_for('company_dashboard'))
+@app.errorhandler(500)
+def server_error(error):
+    return jsonify({'message': 'Internal server error'}), 500
+
+
+@app.errorhandler(401)
+def unauthorized(error):
+    return jsonify({'message': 'Unauthorized access'}), 401
+
+
+@app.errorhandler(403)
+def forbidden(error):
+    return jsonify({'message': 'Forbidden'}), 403
+
+
+# Health check endpoint
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'ok', 'message': 'API is running'}), 200
+
+
+# Frontend page routes
+@app.route('/', methods=['GET'])
+def login_page():
     return render_template('login.html')
 
 
-@app.route('/student/dashboard')
-def student_dashboard():
-    if err := _require_role('student'):
-        return err
-    return render_template('student/dashboard.html', name=session.get('name', 'Student'))
-
-
-@app.route('/admin/dashboard')
-def admin_dashboard():
-    if err := _require_role('admin'):
-        return err
-    return render_template('admin_dashboard.html')
-
-
-@app.route('/company/dashboard')
-def company_dashboard():
-    if err := _require_role('company'):
-        return err
-    return render_template('company_dashboard.html')
-
-
-@app.route('/register/student')
+@app.route('/register/student', methods=['GET'])
 def register_student_page():
     return render_template('register_student.html')
 
 
-@app.route('/register/company')
+@app.route('/register/company', methods=['GET'])
 def register_company_page():
     return render_template('register_company.html')
 
 
-def init_db():
+@app.route('/company/dashboard', methods=['GET'])
+def company_dashboard_page():
+    return render_template('company_dashboard.html')
+
+
+@app.route('/student/dashboard', methods=['GET'])
+def student_dashboard_page():
+    return render_template('student/dashboard.html', name=session.get('name', ''))
+
+
+@app.route('/admin/dashboard', methods=['GET'])
+def admin_dashboard_page():
+    return render_template('admin_dashboard.html')
+
+
+# JWT error handlers
+@jwt.user_lookup_loader
+def user_lookup_callback(_jwt_header, jwt_data):
+    """Load user from JWT token."""
     from models.user import User
-    from models.company import Company
-    from models.student import Student
-    from models.drive import PlacementDrive
-    from models.application import Application
-    from models.interview import InterviewSchedule
-    from models.notification import Notification
-    from sqlalchemy import inspect, text
-
-    db.create_all()
-    _migrate_schema(inspect(db.engine))
-
-    if not User.query.filter_by(role='admin').first():
-        admin = User(
-            username='admin',
-            password='admin123',
-            role='admin',
-            name='Institute Admin',
-            email=os.getenv('ADMIN_EMAIL', 'admin@institute.edu')
-        )
-        db.session.add(admin)
-        db.session.commit()
-        print('Default Admin Created -> admin / admin123')
+    identity = jwt_data['sub']
+    return User.query.get(identity)
 
 
-def _migrate_schema(insp):
-    """Add new columns to existing SQLite tables without manual DB edits."""
-    from sqlalchemy import text
-    migrations = {
-        'user': [('is_blacklisted', 'BOOLEAN DEFAULT 0')],
-        'placement_drive': [
-            ('min_cgpa', 'FLOAT DEFAULT 0.0'),
-            ('eligible_branches', 'VARCHAR(200)'),
-            ('location', 'VARCHAR(200)'),
-            ('eligible_year', 'INTEGER'),
-            ('created_at', 'DATETIME'),
-        ],
-        'student': [
-            ('resume_path', 'VARCHAR(300)'),
-            ('resume_uploaded_at', 'DATETIME'),
-            ('bio', 'TEXT'),
-            ('skills', 'TEXT'),
-            ('is_verified', 'BOOLEAN DEFAULT 0'),
-        ],
-        'application': [
-            ('resume_path', 'VARCHAR(300)'),
-            ('resume_uploaded_at', 'DATETIME'),
-            ('last_updated', 'DATETIME'),
-        ],
-        'interview_schedule': [
-            ('student_response', 'VARCHAR(20)'),
-        ],
-    }
-    for table, columns in migrations.items():
-        if table not in insp.get_table_names():
-            continue
-        existing = {c['name'] for c in insp.get_columns(table)}
-        for col_name, col_type in columns:
-            if col_name not in existing:
-                db.session.execute(text(f'ALTER TABLE {table} ADD COLUMN {col_name} {col_type}'))
-    db.session.commit()
+@jwt.invalid_token_loader
+def invalid_token_callback(error):
+    return jsonify({'message': 'Invalid token'}), 401
+
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_data):
+    return jsonify({'message': 'Token has expired'}), 401
+
+
+@jwt.unauthorized_loader
+def missing_token_callback(error):
+    return jsonify({'message': 'Missing authorization token'}), 401
 
 
 if __name__ == '__main__':
     with app.app_context():
-        init_db()
-    print('Server started at http://127.0.0.1:5000')
+        db.create_all()
+    print('🚀 API Server started at http://127.0.0.1:5000')
     socketio.run(app, debug=True, host='127.0.0.1', port=5000, allow_unsafe_werkzeug=True, use_reloader=False)
+
